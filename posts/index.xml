@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Posts on Arun Lakshman</title>
+    <link>https://www.arunlakshman.info/posts/</link>
+    <description>Recent content in Posts on Arun Lakshman</description>
+    <generator>Hugo</generator>
+    <language>en-us</language>
+    <copyright>© 2019 - 2024 Arun Lakshman</copyright>
+    <lastBuildDate>Mon, 20 Jan 2025 21:30:10 -0800</lastBuildDate>
+    <atom:link href="https://www.arunlakshman.info/posts/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>My First Post</title>
+      <link>https://www.arunlakshman.info/posts/my-first-post/</link>
+      <pubDate>Mon, 20 Jan 2025 21:30:10 -0800</pubDate>
+      <guid>https://www.arunlakshman.info/posts/my-first-post/</guid>
+      <description>&lt;h2 id=&#34;introduction&#34;&gt;Introduction&lt;/h2&gt;&#xA;&lt;p&gt;This is &lt;strong&gt;bold&lt;/strong&gt; text, and this is &lt;em&gt;emphasized&lt;/em&gt; text.&lt;/p&gt;&#xA;&lt;p&gt;Visit the &lt;a href=&#34;https://gohugo.io&#34;&gt;Hugo&lt;/a&gt; website!&lt;/p&gt;</description>
+    </item>
+  </channel>
+</rss>
