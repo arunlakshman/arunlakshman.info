@@ -68,27 +68,22 @@ url = "/blog/index.xml"
 [[params.social]]
 name = "GitHub"
 icon = "github"
-url = "https://github.com/gunnarmorling"
+url = "https://github.com/arunlakshman"
 
 [[params.social]]
 name = "Bluesky"
 icon = "cloud"
-url = "https://bsky.app/profile/gunnarmorling.dev"
+url = "https://bsky.app/profile/arunlakshman.bsky.social"
 
 [[params.social]]
 name = "Twitter"
 icon = "twitter"
-url = "https://twitter.com/gunnarmorling"
+url = "https://twitter.com/arun_lakshman"
 
 [[params.social]]
 name = "LinkedIn"
 icon = "linkedin"
-url = "https://www.linkedin.com/in/gunnar-morling/"
-
-[[params.social]]
-name = "Mastodon"
-icon = "message-square"
-url = "https://mastodon.online/@gunnarmorling"
+url = "https://www.linkedin.com/in/arun-laksh/"
 
 # Enable tags.
 # [taxonomies]
