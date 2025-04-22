@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
-    <title>Arun Lakshman</title>
+    <title>Arun Lakshman, Ravichandran</title>
     <link>https://www.arunlakshman.info/</link>
-    <description>Recent content on Arun Lakshman</description>
+    <description>Recent content on Arun Lakshman, Ravichandran</description>
     <generator>Hugo</generator>
     <language>en-us</language>
-    <copyright>© 2019 - 2024 Arun Lakshman</copyright>
+    <copyright>© 2019 - 2025 Arun Lakshman</copyright>
     <lastBuildDate>Sun, 02 Feb 2025 21:00:00 +0000</lastBuildDate>
     <atom:link href="https://www.arunlakshman.info/index.xml" rel="self" type="application/rss+xml" />
     <item>
@@ -14,7 +14,7 @@
       <link>https://www.arunlakshman.info/about/</link>
       <pubDate>Sun, 02 Feb 2025 21:00:00 +0000</pubDate>
       <guid>https://www.arunlakshman.info/about/</guid>
-      <description>&lt;h2 id=&#34;introduction&#34;&gt;Introduction&lt;/h2&gt;&#xA;&lt;p&gt;My name is Arun.&#xA;I am a Member of the AWS Managed Service for Apache Flink (MSF).&lt;/p&gt;</description>
+      <description>&lt;h2 id=&#34;introduction&#34;&gt;Introduction&lt;/h2&gt;&#xA;&lt;p&gt;My name is Arun Lakshman Ravichandran (just call me arun).&lt;/p&gt;&#xA;&lt;p&gt;I am a Member of the AWS Managed Service for Apache Flink (MSF).&lt;/p&gt;</description>
     </item>
     <item>
       <title>My First Post</title>
