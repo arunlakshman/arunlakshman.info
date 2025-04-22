@@ -1,3 +1,41 @@
 Source code for Arun Lakshman's website.
 
-arunlakshman.info 
+
+# arunlakshman.info
+
+This repo contains the source code of the [arunlakshman.info](https://arunlakshman.info) website.
+It is built using [Hugo](https://gohugo.io/) and hosted on [GitHub Pages](https://pages.github.com/).
+
+## Set-up
+
+Have Hugo and AsciiDoctor installed, e.g. using Brew on macOS:
+
+```shell
+brew install hugo
+brew install asciidoctor
+```
+
+Clone the repo, including the template sub-module:
+
+```shell
+git clone git@github.com:arunlakshman/arunlakshman.info.git  --recurse-submodules
+```
+
+## Editing
+
+Launch a local Hugo server including live reload by running (append `-F` for including future posts):
+
+```
+hugo server -D --debug
+```
+
+## Deployment
+
+Deployment to GitHub pages happens automatically upon pushing the master branch to the upstream repository by means of a GitHub Action.
+
+In order to deploy to GitHub pages manually, commit all changes, then run:
+
+```
+./publish_to_ghpages.sh && git push upstream gh-pages
+```
+

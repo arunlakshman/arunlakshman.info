@@ -6,6 +6,7 @@ title = 'About Arun'
 
 ## Introduction
 
-My name is Arun.
-I am a Member of the AWS Managed Service for Apache Flink (MSF).
+My name is Arun Lakshman Ravichandran (just call me arun).
 
+
+I am a Member of the AWS Managed Service for Apache Flink (MSF).

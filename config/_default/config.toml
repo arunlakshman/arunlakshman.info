@@ -1,15 +1,15 @@
 baseURL = "https://www.arunlakshman.info/"
 languageCode = "en-us"
-title = "Arun Lakshman"
+title = "Arun Lakshman, Ravichandran"
 theme = "ezhil"
-copyright = "© 2019 - 2024 Arun Lakshman"
+copyright = "© 2019 - 2025 Arun Lakshman"
 disqusShortname = "arunlakshman"
-googleAnalytics = "UA-156032495-1"
+googleAnalytics = "00011122233"
 
 
 [params]
 	# Blog subtitle which appears below blog title. Supports markdown.
-	subtitle = "Random Musings on All Things Software Engineering"
+	subtitle = "{ a speck of stardust : writing code }"
 	# Number of posts to show in recent posts list (Optional). Defaults to 10.
 	recentPostsCount = 10
 	# Content types which are included in home page recent posts list.
