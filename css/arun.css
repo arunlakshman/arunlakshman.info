@@ -34,6 +34,26 @@ ul {
     margin-left: 1em;
 }
 
+/* Mermaid diagram styling */
+.mermaid {
+    text-align: center;
+    margin: 2em 0;
+    background-color: transparent;
+}
+
+.mermaid svg {
+    max-width: 100%;
+    height: auto;
+}
+
+/* Ensure Mermaid diagrams are readable in dark mode */
+@media (prefers-color-scheme: dark) {
+    .mermaid {
+        filter: brightness(0.9);
+    }
+}
+
+
 ul.flat svg {
     max-height: 17px;
 }
@@ -65,7 +85,7 @@ h4.summary {
 
 * {
     box-sizing: border-box;
-  }
+}
 
 div.club {
     width: 180px;
@@ -190,8 +210,101 @@ table.linenotable td.linenos {
     padding: 0px;
 }
 
+/* Enhanced Code Block Styling */
+pre {
+    border-radius: 8px;
+    overflow-x: auto;
+    margin: 1.5em 0;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+code {
+    font-family: 'Consolas', 'Monaco', 'Menlo', 'Ubuntu Mono', 'Courier New', monospace;
+    font-size: 0.9em;
+    line-height: 1.6;
+}
+
+/* Inline code */
+p code, li code, td code {
+    background-color: #f5f5f5;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-size: 0.88em;
+    color: #c7254e;
+}
+
+/* Code blocks */
+pre code {
+    display: block;
+    padding: 1.2em 1.5em;
+    background-color: #151515;
+    border-radius: 8px;
+    overflow-x: auto;
+    color: #d0d0d0;
+    font-size: 0.9em;
+    line-height: 1.7;
+}
+
+/* Line number table styling */
+.highlight {
+    border-radius: 8px;
+    margin: 1.5em 0;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+}
+
+.highlight pre {
+    margin: 0;
+    border-radius: 0;
+    box-shadow: none;
+}
+
+/* Improve readability of code with line numbers */
+table.linenotable {
+    border-spacing: 0;
+    border: none;
+    margin: 1.5em 0;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+table.linenotable td.linenos {
+    border-right: 1px solid rgba(255, 255, 255, 0.15);
+    opacity: 0.5;
+    padding: 1.2em 0.8em;
+    background-color: #1a1a1a;
+    user-select: none;
+    vertical-align: top;
+}
+
+table.linenotable td.code {
+    padding: 1.2em 1.5em;
+    width: 100%;
+}
+
+/* Scrollbar styling for code blocks */
+pre::-webkit-scrollbar {
+    height: 10px;
+}
+
+pre::-webkit-scrollbar-track {
+    background: #0a0a0a;
+    border-radius: 0 0 8px 8px;
+}
+
+pre::-webkit-scrollbar-thumb {
+    background: #404040;
+    border-radius: 4px;
+}
+
+pre::-webkit-scrollbar-thumb:hover {
+    background: #505050;
+}
+
 blockquote {
-    font-size: 1.05rem;
+    font-size: 1.15rem;
 }
 
 .halign-left {

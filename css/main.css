@@ -1,9 +1,9 @@
 body {
     font-family: "ubuntu", sans-serif;
     font-weight: 400;
-    color: #333;
+    color: #222;
     line-height: 1.6;
-    font-size: 16px;
+    font-size: 17px;
 }
 
 a, a:hover {
@@ -63,7 +63,7 @@ textarea {
 blockquote {
     margin-left: 1rem;
     font-style: italic;
-    font-size: 1.4rem;
+    font-size: 1.15rem;
     font-family: Georgia,bitstream charter,serif;
     border-left: 3px solid;
     border-color: #73ba30;
@@ -91,8 +91,12 @@ a:hover {
 h1,h2,h3,h4,h5,h6 {
     font-family: raleway,sans-serif;
     line-height: 1.2;
-    color: #333;
-    font-weight: 200;
+    color: #222;
+    font-weight: 300;
+}
+
+h1, h2 {
+    font-weight: 400;
 }
 
 h1 {

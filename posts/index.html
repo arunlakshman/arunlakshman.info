@@ -22,7 +22,7 @@
 
   <meta name="twitter:card" content="summary">
   <meta name="twitter:title" content="Posts">
-<link href="https://fonts.googleapis.com/css?family=Ubuntu:300,400,300italic,400italic|Raleway:200,300" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Ubuntu:wght@300;400;500;700&family=Raleway:wght@200;300;400;600&display=swap" rel="stylesheet" />
 	<link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.11.2/css/all.min.css" />
  
 	<link rel="stylesheet" type="text/css" media="screen" href="https://www.arunlakshman.info/css/normalize.css" />
@@ -31,7 +31,9 @@
 	
 	<link rel="stylesheet" type="text/css" href="https://www.arunlakshman.info/css/base16.dark.css" />
 	
-	<link rel="stylesheet" type="text/css" href="https://www.arunlakshman.info/css/morlingdev.css" />
+	<link rel="stylesheet" type="text/css" href="https://www.arunlakshman.info/css/arun.css" />
+	
+	<link rel="stylesheet" type="text/css" href="https://www.arunlakshman.info/css/syntax.css" />
 	<link rel="stylesheet" type="text/css" href="https://www.arunlakshman.info/css/dark.css" media="(prefers-color-scheme: dark)" />
 
 	<script>
@@ -42,12 +44,47 @@
 	<script src="https://www.arunlakshman.info//js/main.js"></script>
 	<script src="https://www.arunlakshman.info//js/medium-zoom.min.js"></script>
 
+	
+	<script type="module">
+		import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+		
+		
+		const isDarkMode = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+		
+		mermaid.initialize({ 
+			startOnLoad: true,
+			theme: isDarkMode ? 'dark' : 'default',
+			securityLevel: 'loose',
+			flowchart: {
+				useMaxWidth: true,
+				htmlLabels: true
+			},
+			sequence: {
+				useMaxWidth: true,
+				wrap: true
+			}
+		});
+
+		
+		window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+			const newTheme = e.matches ? 'dark' : 'default';
+			mermaid.initialize({ 
+				startOnLoad: true,
+				theme: newTheme,
+				securityLevel: 'loose'
+			});
+			
+			location.reload();
+		});
+	</script>
+
 	<noscript>
 		<style type="text/css">
 			.club { display:none; }
 		</style>
 	</noscript>
 </head>
+
 
 
 <body>
