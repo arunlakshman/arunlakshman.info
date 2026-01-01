@@ -29,7 +29,7 @@ googleAnalytics = "00011122233"
 	# you can specify custom css path as `css/custom.css`.
 	# Rouge CSS files (syntax highlighter used by AsciiDoctor) are obtained via
 	# rougify style base16.dark > static/css/base16.dark.css
-	customCSS = ["css/base16.dark.css", "css/morlingdev.css"]
+	customCSS = ["css/base16.dark.css", "css/arun.css", "css/syntax.css"]
 
 [[menu.main]]
 name = "Blog"
@@ -105,6 +105,17 @@ notAlternative = true
 
 [outputs]
 home = ["HTML","RSS", "SearchIndex"]
+
+[markup]
+  [markup.goldmark]
+    [markup.goldmark.renderer]
+      unsafe = true
+  [markup.highlight]
+    codeFences = true
+    guessSyntax = false
+    lineNos = false
+    noClasses = false
+    style = "monokai"
 
 [security]
   enableInlineShortcodes = false

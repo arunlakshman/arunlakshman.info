@@ -1,0 +1,105 @@
+<head>
+	<!-- Google tag (gtag.js) -->
+	<script async src="https://www.googletagmanager.com/gtag/js?id=G-603BG4GGEB"></script>
+	<script>
+		window.dataLayer = window.dataLayer || [];
+		function gtag(){dataLayer.push(arguments);}
+		gtag('js', new Date());
+
+		gtag('config', 'G-603BG4GGEB');
+	</script>
+
+	<meta charset="utf-8" />
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	{{- $title := ( .Title ) -}}
+	{{- $siteTitle := ( .Site.Title ) -}}
+	{{- if .IsHome -}}
+	<title>{{ $siteTitle }} {{ if isset .Site.Params "subtitle" }}- {{ .Site.Params.Subtitle }}{{ end }} </title>
+	{{- else -}}
+	<title>{{ $title }} - {{ $siteTitle }}</title>
+	{{- end -}}
+
+	{{- if isset .Site.Params "favicon" -}}
+	<link rel="icon" type="image/png" href={{ .Site.Params.favicon }} />
+	{{- end -}}
+
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	{{ with .OutputFormats.Get "rss" -}}
+	{{ printf `<link rel="%s" type="%s" href="%s" title="%s" />` .Rel .MediaType.Type .Permalink $.Site.Title | safeHTML }}
+	{{ end -}}
+
+	{{- template "_internal/opengraph.html" . -}}
+	{{- template "_internal/twitter_cards.html" . -}}
+
+	<link href="https://fonts.googleapis.com/css2?family=Ubuntu:wght@300;400;500;700&family=Raleway:wght@200;300;400;600&display=swap" rel="stylesheet" />
+	<link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.11.2/css/all.min.css" />
+ 
+	<link rel="stylesheet" type="text/css" media="screen" href="{{ .Site.BaseURL }}css/normalize.css" />
+	<link rel="stylesheet" type="text/css" media="screen" href="{{ .Site.BaseURL }}css/main.css" />
+
+	{{ range $css := .Site.Params.customCSS }}
+	<link rel="stylesheet" type="text/css" href="{{ $.Site.BaseURL }}{{ $css }}" />
+	{{ end }}
+
+	{{- if or (eq .Site.Params.mode "auto") (eq .Site.Params.mode "dark") -}}
+	<link rel="stylesheet" type="text/css" href="{{ .Site.BaseURL }}css/dark.css" {{ if eq .Site.Params.mode "auto" }}media="(prefers-color-scheme: dark)"{{ end }} />
+	{{- if isset .Site.Params "customdarkcss" }}
+	<link rel="stylesheet" type="text/css" href="{{ .Site.BaseURL }}{{ .Site.Params.customDarkCSS }}" {{ if eq .Site.Params.mode "auto" }}media="(prefers-color-scheme: dark)"{{ end }} />
+	{{- end }}
+	{{- end }}
+
+	<script>
+		const searchUrl = "{{ .Site.Params.SearchURL }}";
+		const apiKey = "{{ .Site.Params.apiKey }}";
+	</script>
+
+	<script src="{{ $.Site.BaseURL }}/js/main.js"></script>
+	<script src="{{ $.Site.BaseURL }}/js/medium-zoom.min.js"></script>
+
+	{{- if isset .Site.Params "customjs" -}}
+	{{- range .Site.Params.customJS }}
+	<script src="{{ $.Site.BaseURL }}{{ . }}"></script>
+	{{- end }}
+	{{- end }}
+
+	<!-- Mermaid.js for diagram rendering -->
+	<script type="module">
+		import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+		
+		// Configure mermaid with dark mode support
+		const isDarkMode = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+		
+		mermaid.initialize({ 
+			startOnLoad: true,
+			theme: isDarkMode ? 'dark' : 'default',
+			securityLevel: 'loose',
+			flowchart: {
+				useMaxWidth: true,
+				htmlLabels: true
+			},
+			sequence: {
+				useMaxWidth: true,
+				wrap: true
+			}
+		});
+
+		// Re-initialize if dark mode preference changes
+		window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+			const newTheme = e.matches ? 'dark' : 'default';
+			mermaid.initialize({ 
+				startOnLoad: true,
+				theme: newTheme,
+				securityLevel: 'loose'
+			});
+			// Reload the page to apply the new theme to existing diagrams
+			location.reload();
+		});
+	</script>
+
+	<noscript>
+		<style type="text/css">
+			.club { display:none; }
+		</style>
+	</noscript>
+</head>
+

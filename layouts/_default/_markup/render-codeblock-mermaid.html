@@ -1,0 +1,5 @@
+{{- /* This hook only processes mermaid code blocks */ -}}
+<div class="mermaid">
+{{- .Inner | safeHTML -}}
+</div>
+
