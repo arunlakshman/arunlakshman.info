@@ -16,7 +16,7 @@
 	<meta property="og:url" content="https://www.arunlakshman.info/posts/atomic-vs-mutex/">
   <meta property="og:site_name" content="Arun Lakshman, Ravichandran">
   <meta property="og:title" content="Atomic Integer vs Mutex in Go: Why You&#39;re Paying for a Lock You Don&#39;t Need">
-  <meta property="og:description" content="TL;DR Mutex (Pessimistic): Blocks all goroutines—safe but slow under contention Atomic (Optimistic): No blocking, retries on collision—fast for simple operations Use Atomic when: Single operation on a shared int/bool (counters, flags, gauges) Use Mutex when: Multiple operations must be atomic together, or failure/retry is unacceptable Benchmark result: Atomic significantly outperforms Mutex as goroutine count increases You’re building a high-throughput API server in Go. Requests are flooding in, and you need to count them across multiple goroutines. Simple enough—you reach for sync.Mutex, wrap your counter, and move on.">
+  <meta property="og:description" content="TL;DR Mutex (Pessimistic): Blocks all goroutines. It’s safe but slow under contention. Atomic (Optimistic): No blocking, retries on collision. Fast for simple operations. Use Atomic when: Single operation on a shared int/bool (counters, flags, gauges) Use Mutex when: Multiple operations must be atomic together, or failure/retry is unacceptable Benchmark result: Atomic significantly outperforms Mutex as goroutine count increases You’re building a high-throughput API server in Go. Requests are flooding in, and you need to count them across multiple goroutines. Simple enough, right? You reach for sync.Mutex, wrap your counter, and move on.">
   <meta property="og:locale" content="en_us">
   <meta property="og:type" content="article">
     <meta property="article:section" content="posts">
@@ -25,7 +25,7 @@
 
   <meta name="twitter:card" content="summary">
   <meta name="twitter:title" content="Atomic Integer vs Mutex in Go: Why You&#39;re Paying for a Lock You Don&#39;t Need">
-  <meta name="twitter:description" content="TL;DR Mutex (Pessimistic): Blocks all goroutines—safe but slow under contention Atomic (Optimistic): No blocking, retries on collision—fast for simple operations Use Atomic when: Single operation on a shared int/bool (counters, flags, gauges) Use Mutex when: Multiple operations must be atomic together, or failure/retry is unacceptable Benchmark result: Atomic significantly outperforms Mutex as goroutine count increases You’re building a high-throughput API server in Go. Requests are flooding in, and you need to count them across multiple goroutines. Simple enough—you reach for sync.Mutex, wrap your counter, and move on.">
+  <meta name="twitter:description" content="TL;DR Mutex (Pessimistic): Blocks all goroutines. It’s safe but slow under contention. Atomic (Optimistic): No blocking, retries on collision. Fast for simple operations. Use Atomic when: Single operation on a shared int/bool (counters, flags, gauges) Use Mutex when: Multiple operations must be atomic together, or failure/retry is unacceptable Benchmark result: Atomic significantly outperforms Mutex as goroutine count increases You’re building a high-throughput API server in Go. Requests are flooding in, and you need to count them across multiple goroutines. Simple enough, right? You reach for sync.Mutex, wrap your counter, and move on.">
 <link href="https://fonts.googleapis.com/css2?family=Ubuntu:wght@300;400;500;700&family=Raleway:wght@200;300;400;600&display=swap" rel="stylesheet" />
 	<link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.11.2/css/all.min.css" />
  
@@ -178,29 +178,29 @@
 			<div class="markdown">
 				<h2 id="tldr">TL;DR</h2>
 <ul>
-<li><strong>Mutex (Pessimistic)</strong>: Blocks all goroutines—safe but slow under contention</li>
-<li><strong>Atomic (Optimistic)</strong>: No blocking, retries on collision—fast for simple operations</li>
+<li><strong>Mutex (Pessimistic)</strong>: Blocks all goroutines. It&rsquo;s safe but slow under contention.</li>
+<li><strong>Atomic (Optimistic)</strong>: No blocking, retries on collision. Fast for simple operations.</li>
 <li><strong>Use Atomic when</strong>: Single operation on a shared int/bool (counters, flags, gauges)</li>
 <li><strong>Use Mutex when</strong>: Multiple operations must be atomic together, or failure/retry is unacceptable</li>
 <li><strong>Benchmark result</strong>: Atomic significantly outperforms Mutex as goroutine count increases</li>
 </ul>
-<hr>
-<p>You&rsquo;re building a high-throughput API server in Go. Requests are flooding in, and you need to count them across multiple goroutines. Simple enough—you reach for <code>sync.Mutex</code>, wrap your counter, and move on.</p>
+<p>You&rsquo;re building a high-throughput API server in Go. Requests are flooding in, and you need to count them across multiple goroutines. Simple enough, right? You reach for <code>sync.Mutex</code>, wrap your counter, and move on.</p>
 <p>But here&rsquo;s the problem: Mutex is a pessimistic lock. Every goroutine waits in line, even for a single integer increment. Under high concurrency, this creates unnecessary contention and quietly kills your performance.</p>
 <p>Is there a better way when your critical section is just one operation on a shared integer?</p>
 <p>Yes. Use <code>atomic.Int64</code>. It leverages optimistic concurrency control, avoids blocking, and significantly outperforms Mutex for single-operation critical sections.</p>
-<p>Let me show you why—and when—to make the switch.</p>
-<hr>
+<p>Let me show you why and when to make the switch.</p>
 <h2 id="understanding-the-two-approaches-pcc-vs-occ">Understanding the Two Approaches: PCC vs OCC</h2>
 <p>Before diving into code, let&rsquo;s build intuition for <em>why</em> these two approaches behave differently.</p>
-<h3 id="pessimistic-concurrency-control-pcc-the-mcdonalds-counter">Pessimistic Concurrency Control (PCC): The McDonald&rsquo;s Counter</h3>
-<p>Imagine a McDonald&rsquo;s where you take a token number and wait for your turn. Only one customer is served at a time. You&rsquo;re guaranteed service when your number is called—but everyone waits in line, even if the counter is free.</p>
-<p>This is how <code>sync.Mutex</code> works. A goroutine acquires the lock, does its work, and releases it. Everyone else blocks until it&rsquo;s their turn.</p>
+<h3 id="pessimistic-concurrency-control-pcc-the-single-occupancy-restroom">Pessimistic Concurrency Control (PCC): The Single-Occupancy Restroom</h3>
+<p>Picture this: You&rsquo;re at a busy concert venue, and there&rsquo;s only one restroom stall available. The door has a deadbolt lock that can only be locked from the inside. When someone enters, they turn the lock, and the door is sealed shut. Everyone else, whether they need a quick hand wash or a full stop, must wait patiently in a growing line outside, their time ticking away.</p>
+<p>The second person in line watches as the first person spends 30 seconds inside. The third person watches both of them. By the time person number 10 gets their turn, they&rsquo;ve been standing there for 5 minutes, even though their actual need takes mere seconds.</p>
+<p>This is exactly how <code>sync.Mutex</code> works. A goroutine acquires the lock, does its work no matter how trivial or quick, and releases it. Every other goroutine blocks, suspended in memory, waiting for their turn in an orderly queue. The operating system wakes them up one by one, but they can&rsquo;t do anything until the lock is released, even for operations as simple as incrementing a counter by 1.</p>
+<p>The mutex guarantees fairness: everyone gets their turn eventually. But this fairness comes at a cost. Under high contention, your goroutines spend more time waiting than working. The CPU cores sit idle while the lock holder performs a task that, in isolation, would take nanoseconds.</p>
 <p><strong>Characteristics:</strong></p>
 <ul>
-<li>Safe: guaranteed exclusive access</li>
-<li>Never fails: you always get your turn</li>
-<li>Slow under load: everyone waits, even for trivial operations</li>
+<li>Safe: You get guaranteed exclusive access</li>
+<li>Never fails: You always get your turn</li>
+<li>Slow under load: Everyone waits, even for trivial operations</li>
 </ul>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="kd">type</span><span class="w"> </span><span class="nx">MutexCounter</span><span class="w"> </span><span class="kd">struct</span><span class="w"> </span><span class="p">{</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">mu</span><span class="w">    </span><span class="nx">sync</span><span class="p">.</span><span class="nx">Mutex</span><span class="w">
@@ -213,39 +213,37 @@
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">c</span><span class="p">.</span><span class="nx">value</span><span class="o">++</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="p">}</span><span class="w">
 </span></span></span></code></pre></div><h3 id="optimistic-concurrency-control-occ-grabbing-the-last-item-on-a-shelf">Optimistic Concurrency Control (OCC): Grabbing the Last Item on a Shelf</h3>
-<p>Now imagine a store shelf with one item left. Two shoppers reach for it simultaneously. One grabs it; the other&rsquo;s hand closes on air. The &ldquo;loser&rdquo; doesn&rsquo;t wait in line—they check if more stock arrived and try again.</p>
-<p>This is how atomic operations work. You attempt the operation optimistically, assuming no conflict. If someone else changed the value, you retry.</p>
+<p>Now imagine a different scenario: You&rsquo;re at a bookstore during a Black Friday sale. There&rsquo;s a display table with exactly one copy of a bestselling novel left. You spot it just as another customer does. Both of you rush toward it, hands outstretched.</p>
+<p>One of you grabs the book first. Success! The other person&rsquo;s hand closes on empty air. But here&rsquo;s the key difference: the &ldquo;loser&rdquo; doesn&rsquo;t stand there waiting for you to finish your purchase. Instead, they immediately check if the staff has restocked the display, and if they see another copy, they grab it right away. If not, they might check another section, try again, or move on. No queue, no waiting, no wasted time.</p>
+<p>This is how atomic operations work. You attempt the operation optimistically, assuming no conflict will occur. You read the current value, compute the new value, and attempt to update it atomically. If someone else changed the value in the meantime, like when the book was already taken, your update fails silently. You simply retry with the new current value.</p>
+<p>Most of the time, you succeed on the first try because collisions are rare. When collisions do happen, they&rsquo;re detected instantly at the hardware level, and the retry is nearly free. There&rsquo;s no blocking, no queue, no context switching. Your goroutines stay active, making progress on other work while occasionally retrying the operation.</p>
 <p><strong>Characteristics:</strong></p>
 <ul>
-<li>Fast: no waiting, no blocking</li>
-<li>Can fail: collisions happen</li>
-<li>Cheap retries: failures are rare and recovery is instant</li>
+<li>Fast: No waiting, no blocking</li>
+<li>Can fail: Collisions happen</li>
+<li>Cheap retries: Failures are rare and recovery is instant</li>
 </ul>
+<h3 id="a-third-example-the-concert-ticket-rush">A Third Example: The Concert Ticket Rush</h3>
+<p>Here&rsquo;s another scenario that highlights the difference: Imagine tickets for a sold-out concert go on sale at exactly 10:00 AM. Thousands of fans are waiting, fingers hovering over their keyboards, ready to claim the last 100 tickets.</p>
+<p>With a Mutex approach, it&rsquo;s like having a single ticket window. Everyone lines up in a virtual queue. Person 1 buys their ticket, then person 2, then person 3, each transaction taking precious seconds. By the time person 50 gets to the window, the first 49 people have already purchased tickets, and those behind them are still waiting. The system processes tickets sequentially, one at a time, ensuring fairness but creating a bottleneck.</p>
+<p>With an Atomic approach, it&rsquo;s like having a digital ticket board where everyone can see the available tickets simultaneously. When the clock strikes 10:00 AM, thousands of people click &ldquo;Buy&rdquo; at the exact same moment. The system processes all these requests in parallel. Some people successfully claim ticket #1, #2, #3&hellip; while others find their selected ticket was just claimed by someone else. But here&rsquo;s the crucial part: those who &ldquo;missed&rdquo; don&rsquo;t wait in line. They immediately try the next available ticket. Within milliseconds, all 100 tickets are claimed, and the system has handled thousands of simultaneous requests efficiently.</p>
+<p>In the Mutex scenario, you might process 100 tickets in several minutes as people wait their turn. In the Atomic scenario, all 100 tickets are gone in seconds because everyone is working in parallel, with only the winners needing to retry when collisions occur.</p>
 <h3 id="why-retry-makes-sense">Why Retry Makes Sense</h3>
-<p>At first, &ldquo;can fail&rdquo; sounds worse than &ldquo;never fails.&rdquo; But consider the math:</p>
+<p>At first, &ldquo;can fail&rdquo; sounds worse than &ldquo;never fails.&rdquo; But here&rsquo;s the thing:</p>
 <ul>
-<li>With Mutex, <em>every</em> goroutine pays the cost of acquiring and releasing a lock</li>
-<li>With Atomic, <em>most</em> operations succeed on the first try; only collisions retry</li>
+<li>With Mutex, every goroutine pays the cost of acquiring and releasing a lock</li>
+<li>With Atomic, most operations succeed on the first try. Only collisions retry.</li>
 </ul>
-<p>When your critical section is a single integer increment, collisions are rare and retries are nearly free. You&rsquo;re trading guaranteed-but-slow for almost-always-fast.</p>
+<p>When your critical section is a single integer increment, collisions are rare and retries are nearly free. You&rsquo;re trading guaranteed but slow for almost always fast.</p>
 <h3 id="how-atomic-achieves-this-compare-and-swap-cas">How Atomic Achieves This: Compare-And-Swap (CAS)</h3>
-<p>Under the hood, atomic operations use a CPU instruction called Compare-And-Swap (CAS). Here&rsquo;s the logic:</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="kd">func</span><span class="w"> </span><span class="nf">CompareAndSwap</span><span class="p">(</span><span class="nx">addr</span><span class="w"> </span><span class="o">*</span><span class="kt">int64</span><span class="p">,</span><span class="w"> </span><span class="nx">old</span><span class="p">,</span><span class="w"> </span><span class="nx">new</span><span class="w"> </span><span class="kt">int64</span><span class="p">)</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="p">{</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="c1">// Atomically:</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="c1">// if *addr == old {</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="c1">//     *addr = new</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="c1">//     return true</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="c1">// }</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="c1">// return false</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="p">}</span><span class="w">
-</span></span></span></code></pre></div><p>A typical atomic increment works like this:</p>
+<p>Under the hood, atomic operations use a CPU instruction called Compare-And-Swap (CAS). A typical atomic increment works like this:</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="k">for</span><span class="w"> </span><span class="p">{</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">old</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">atomic</span><span class="p">.</span><span class="nf">LoadInt64</span><span class="p">(</span><span class="o">&amp;</span><span class="nx">value</span><span class="p">)</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">new</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">old</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">atomic</span><span class="p">.</span><span class="nf">CompareAndSwapInt64</span><span class="p">(</span><span class="o">&amp;</span><span class="nx">value</span><span class="p">,</span><span class="w"> </span><span class="nx">old</span><span class="p">,</span><span class="w"> </span><span class="nx">new</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="k">break</span><span class="w"> </span><span class="c1">// Success</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="c1">// Someone else changed it—retry</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="c1">// Someone else changed it, so we retry</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="p">}</span><span class="w">
 </span></span></span></code></pre></div><p>Go&rsquo;s <code>atomic.AddInt64</code> does this for you in a single, optimized call:</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="kd">type</span><span class="w"> </span><span class="nx">AtomicCounter</span><span class="w"> </span><span class="kd">struct</span><span class="w"> </span><span class="p">{</span><span class="w">
@@ -255,28 +253,198 @@
 </span></span></span><span class="line"><span class="cl"><span class="kd">func</span><span class="w"> </span><span class="p">(</span><span class="nx">c</span><span class="w"> </span><span class="o">*</span><span class="nx">AtomicCounter</span><span class="p">)</span><span class="w"> </span><span class="nf">Increment</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">atomic</span><span class="p">.</span><span class="nf">AddInt64</span><span class="p">(</span><span class="o">&amp;</span><span class="nx">c</span><span class="p">.</span><span class="nx">value</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="p">}</span><span class="w">
-</span></span></span></code></pre></div><hr>
-<h2 id="proof-benchmark-results">Proof: Benchmark Results</h2>
-<p>Theory is nice, but let&rsquo;s see the numbers. Here&rsquo;s a complete benchmark you can run yourself:</p>
-<script src="https://gist.github.com/arunlakshman/2cedd03cd9513f7c80d986abb4355cb5.js"></script>
-<p>The benchmark scales from 1 to 64 goroutines, showing you exactly where Atomic pulls ahead.</p>
-<hr>
+</span></span></span></code></pre></div><h2 id="proof-benchmark-results">Proof: Benchmark Results</h2>
+<p>Theory is nice, but let&rsquo;s see the actual numbers. The complete benchmark code is available as a <a href="https://gist.github.com/arunlakshman/2cedd03cd9513f7c80d986abb4355cb5">GitHub Gist</a>. Here are the two counter implementations we&rsquo;re comparing:</p>
+<h3 id="mutex-counter-pessimistic">Mutex Counter (Pessimistic)</h3>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="kd">type</span><span class="w"> </span><span class="nx">MutexCounter</span><span class="w"> </span><span class="kd">struct</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">mu</span><span class="w">    </span><span class="nx">sync</span><span class="p">.</span><span class="nx">Mutex</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">value</span><span class="w"> </span><span class="kt">int64</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="kd">func</span><span class="w"> </span><span class="p">(</span><span class="nx">c</span><span class="w"> </span><span class="o">*</span><span class="nx">MutexCounter</span><span class="p">)</span><span class="w"> </span><span class="nf">Increment</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">c</span><span class="p">.</span><span class="nx">mu</span><span class="p">.</span><span class="nf">Lock</span><span class="p">()</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">defer</span><span class="w"> </span><span class="nx">c</span><span class="p">.</span><span class="nx">mu</span><span class="p">.</span><span class="nf">Unlock</span><span class="p">()</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">c</span><span class="p">.</span><span class="nx">value</span><span class="o">++</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="kd">func</span><span class="w"> </span><span class="p">(</span><span class="nx">c</span><span class="w"> </span><span class="o">*</span><span class="nx">MutexCounter</span><span class="p">)</span><span class="w"> </span><span class="nf">Get</span><span class="p">()</span><span class="w"> </span><span class="kt">int64</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">c</span><span class="p">.</span><span class="nx">mu</span><span class="p">.</span><span class="nf">Lock</span><span class="p">()</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">defer</span><span class="w"> </span><span class="nx">c</span><span class="p">.</span><span class="nx">mu</span><span class="p">.</span><span class="nf">Unlock</span><span class="p">()</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nx">c</span><span class="p">.</span><span class="nx">value</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><h3 id="atomic-counter-optimistic">Atomic Counter (Optimistic)</h3>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="kd">type</span><span class="w"> </span><span class="nx">AtomicCounter</span><span class="w"> </span><span class="kd">struct</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">value</span><span class="w"> </span><span class="kt">int64</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="kd">func</span><span class="w"> </span><span class="p">(</span><span class="nx">c</span><span class="w"> </span><span class="o">*</span><span class="nx">AtomicCounter</span><span class="p">)</span><span class="w"> </span><span class="nf">Increment</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">atomic</span><span class="p">.</span><span class="nf">AddInt64</span><span class="p">(</span><span class="o">&amp;</span><span class="nx">c</span><span class="p">.</span><span class="nx">value</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="kd">func</span><span class="w"> </span><span class="p">(</span><span class="nx">c</span><span class="w"> </span><span class="o">*</span><span class="nx">AtomicCounter</span><span class="p">)</span><span class="w"> </span><span class="nf">Get</span><span class="p">()</span><span class="w"> </span><span class="kt">int64</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nx">atomic</span><span class="p">.</span><span class="nf">LoadInt64</span><span class="p">(</span><span class="o">&amp;</span><span class="nx">c</span><span class="p">.</span><span class="nx">value</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><h3 id="benchmark-results">Benchmark Results</h3>
+<p>I ran the benchmark on a machine with 8 CPU cores, scaling from 1 to 64 goroutines. Each goroutine performed 1 million increments. Here are the results:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-text" data-lang="text"><span class="line"><span class="cl">Mutex vs Atomic Integer Benchmark
+</span></span><span class="line"><span class="cl">==================================
+</span></span><span class="line"><span class="cl">CPU Cores: 8
+</span></span><span class="line"><span class="cl">GOMAXPROCS: 8
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">Running benchmark with 1 goroutines, 1000000 operations per goroutine...
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">================================================================================
+</span></span><span class="line"><span class="cl">PERFORMANCE COMPARISON
+</span></span><span class="line"><span class="cl">================================================================================
+</span></span><span class="line"><span class="cl">Atomic is 1.99x faster than Mutex
+</span></span><span class="line"><span class="cl">Mutex Duration:   14.604ms
+</span></span><span class="line"><span class="cl">Atomic Duration:  7.328ms
+</span></span><span class="line"><span class="cl">Time Saved:       7.276ms
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">Mutex Ops/Second:  68473612
+</span></span><span class="line"><span class="cl">Atomic Ops/Second: 136464130
+</span></span><span class="line"><span class="cl">Difference:        67990518 ops/sec (99.3% improvement)
+</span></span><span class="line"><span class="cl">================================================================================
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">Running benchmark with 2 goroutines, 1000000 operations per goroutine...
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">================================================================================
+</span></span><span class="line"><span class="cl">PERFORMANCE COMPARISON
+</span></span><span class="line"><span class="cl">================================================================================
+</span></span><span class="line"><span class="cl">Atomic is 2.55x faster than Mutex
+</span></span><span class="line"><span class="cl">Mutex Duration:   85.616ms
+</span></span><span class="line"><span class="cl">Atomic Duration:  33.594ms
+</span></span><span class="line"><span class="cl">Time Saved:       52.022ms
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">Mutex Ops/Second:  23359999
+</span></span><span class="line"><span class="cl">Atomic Ops/Second: 59534265
+</span></span><span class="line"><span class="cl">Difference:        36174266 ops/sec (154.9% improvement)
+</span></span><span class="line"><span class="cl">================================================================================
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">Running benchmark with 4 goroutines, 1000000 operations per goroutine...
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">================================================================================
+</span></span><span class="line"><span class="cl">PERFORMANCE COMPARISON
+</span></span><span class="line"><span class="cl">================================================================================
+</span></span><span class="line"><span class="cl">Atomic is 2.86x faster than Mutex
+</span></span><span class="line"><span class="cl">Mutex Duration:   261.793ms
+</span></span><span class="line"><span class="cl">Atomic Duration:  91.635ms
+</span></span><span class="line"><span class="cl">Time Saved:       170.158ms
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">Mutex Ops/Second:  15279242
+</span></span><span class="line"><span class="cl">Atomic Ops/Second: 43651225
+</span></span><span class="line"><span class="cl">Difference:        28371983 ops/sec (185.7% improvement)
+</span></span><span class="line"><span class="cl">================================================================================
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">Running benchmark with 8 goroutines, 1000000 operations per goroutine...
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">================================================================================
+</span></span><span class="line"><span class="cl">PERFORMANCE COMPARISON
+</span></span><span class="line"><span class="cl">================================================================================
+</span></span><span class="line"><span class="cl">Atomic is 2.10x faster than Mutex
+</span></span><span class="line"><span class="cl">Mutex Duration:   666.549ms
+</span></span><span class="line"><span class="cl">Atomic Duration:  316.676ms
+</span></span><span class="line"><span class="cl">Time Saved:       349.873ms
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">Mutex Ops/Second:  12002121
+</span></span><span class="line"><span class="cl">Atomic Ops/Second: 25262398
+</span></span><span class="line"><span class="cl">Difference:        13260277 ops/sec (110.5% improvement)
+</span></span><span class="line"><span class="cl">================================================================================
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">Running benchmark with 16 goroutines, 1000000 operations per goroutine...
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">================================================================================
+</span></span><span class="line"><span class="cl">PERFORMANCE COMPARISON
+</span></span><span class="line"><span class="cl">================================================================================
+</span></span><span class="line"><span class="cl">Atomic is 2.26x faster than Mutex
+</span></span><span class="line"><span class="cl">Mutex Duration:   1.46708s
+</span></span><span class="line"><span class="cl">Atomic Duration:  649.424ms
+</span></span><span class="line"><span class="cl">Time Saved:       817.656ms
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">Mutex Ops/Second:  10906018
+</span></span><span class="line"><span class="cl">Atomic Ops/Second: 24637233
+</span></span><span class="line"><span class="cl">Difference:        13731215 ops/sec (125.9% improvement)
+</span></span><span class="line"><span class="cl">================================================================================
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">Running benchmark with 32 goroutines, 1000000 operations per goroutine...
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">================================================================================
+</span></span><span class="line"><span class="cl">PERFORMANCE COMPARISON
+</span></span><span class="line"><span class="cl">================================================================================
+</span></span><span class="line"><span class="cl">Atomic is 2.25x faster than Mutex
+</span></span><span class="line"><span class="cl">Mutex Duration:   2.889466s
+</span></span><span class="line"><span class="cl">Atomic Duration:  1.284447s
+</span></span><span class="line"><span class="cl">Time Saved:       1.605019s
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">Mutex Ops/Second:  11074710
+</span></span><span class="line"><span class="cl">Atomic Ops/Second: 24913450
+</span></span><span class="line"><span class="cl">Difference:        13838740 ops/sec (125.0% improvement)
+</span></span><span class="line"><span class="cl">================================================================================
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">Running benchmark with 64 goroutines, 1000000 operations per goroutine...
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">================================================================================
+</span></span><span class="line"><span class="cl">PERFORMANCE COMPARISON
+</span></span><span class="line"><span class="cl">================================================================================
+</span></span><span class="line"><span class="cl">Atomic is 2.33x faster than Mutex
+</span></span><span class="line"><span class="cl">Mutex Duration:   5.807583s
+</span></span><span class="line"><span class="cl">Atomic Duration:  2.492188s
+</span></span><span class="line"><span class="cl">Time Saved:       3.315395s
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">Mutex Ops/Second:  11020075
+</span></span><span class="line"><span class="cl">Atomic Ops/Second: 25680243
+</span></span><span class="line"><span class="cl">Difference:        14660168 ops/sec (133.0% improvement)
+</span></span><span class="line"><span class="cl">================================================================================
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">================================================================================
+</span></span><span class="line"><span class="cl">Method   | Goroutines | Total Ops | Duration   | Ops/Second | Final Value
+</span></span><span class="line"><span class="cl">--------------------------------------------------------------------------------
+</span></span><span class="line"><span class="cl">Mutex    | 1          | 1000000   | 14.604ms   | 68473612   | 1000000
+</span></span><span class="line"><span class="cl">Atomic   | 1          | 1000000   | 7.328ms    | 136464130  | 1000000
+</span></span><span class="line"><span class="cl">Mutex    | 2          | 2000000   | 85.616ms   | 23359999   | 2000000
+</span></span><span class="line"><span class="cl">Atomic   | 2          | 2000000   | 33.594ms   | 59534265   | 2000000
+</span></span><span class="line"><span class="cl">Mutex    | 4          | 4000000   | 261.793ms  | 15279242   | 4000000
+</span></span><span class="line"><span class="cl">Atomic   | 4          | 4000000   | 91.635ms   | 43651225   | 4000000
+</span></span><span class="line"><span class="cl">Mutex    | 8          | 8000000   | 666.549ms  | 12002121   | 8000000
+</span></span><span class="line"><span class="cl">Atomic   | 8          | 8000000   | 316.676ms  | 25262398   | 8000000
+</span></span><span class="line"><span class="cl">Mutex    | 16         | 16000000  | 1.46708s   | 10906018   | 16000000
+</span></span><span class="line"><span class="cl">Atomic   | 16         | 16000000  | 649.424ms  | 24637233   | 16000000
+</span></span><span class="line"><span class="cl">Mutex    | 32         | 32000000  | 2.889466s  | 11074710   | 32000000
+</span></span><span class="line"><span class="cl">Atomic   | 32         | 32000000  | 1.284447s  | 24913450   | 32000000
+</span></span><span class="line"><span class="cl">Mutex    | 64         | 64000000  | 5.807583s  | 11020075   | 64000000
+</span></span><span class="line"><span class="cl">Atomic   | 64         | 64000000  | 2.492188s  | 25680243   | 64000000
+</span></span><span class="line"><span class="cl">================================================================================
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">Benchmark completed!
+</span></span></code></pre></div><p><strong>Key Observations:</strong></p>
+<ol>
+<li>
+<p><strong>Atomic maintains consistent performance</strong> (around 25M ops/sec) as goroutine count increases, while Mutex throughput degrades significantly (from 68M to 11M ops/sec).</p>
+</li>
+<li>
+<p><strong>The performance gap widens with concurrency</strong>: At 1 goroutine, Atomic is about 2x faster. At 64 goroutines, it&rsquo;s still about 2.3x faster, but more importantly, Atomic delivers <strong>2.3x the throughput</strong> under high contention.</p>
+</li>
+<li>
+<p><strong>Mutex contention costs</strong>: Mutex performance drops dramatically with more goroutines due to lock contention. Goroutines spend time waiting instead of working.</p>
+</li>
+</ol>
+<p>The benchmark clearly shows that for simple counter operations, Atomic provides significant performance advantages, especially under high concurrency.</p>
 <h2 id="when-to-use-which">When to Use Which</h2>
 <p>Here&rsquo;s the decision framework:</p>
-<h3 id="use-atomic-when">Use Atomic When:</h3>
+<h3 id="use-atomic-when">Use Atomic When</h3>
 <ul>
 <li>The critical section is a <strong>single operation</strong> on a shared <code>int</code>, <code>int64</code>, <code>uint64</code>, or <code>bool</code></li>
 <li>Retry is cheap and acceptable</li>
 <li>You need maximum throughput for simple counters, flags, or gauges</li>
 </ul>
-<h3 id="use-mutex-when">Use Mutex When:</h3>
+<h3 id="use-mutex-when">Use Mutex When</h3>
 <p><strong>Multiple operations must be atomic together:</strong></p>
 <ul>
-<li>Rate limiter with time window: check count AND timestamp, conditionally reset, then increment</li>
-<li>Circuit breaker: increment failure count AND check threshold AND flip state</li>
-<li>Connection pool: decrement count AND remove from available list</li>
-<li>User session: update <code>lastActiveTime</code> AND increment <code>requestCount</code></li>
-<li>Inventory with reorder: decrement stock AND check threshold AND set <code>reorderFlag</code></li>
+<li>Rate limiter with time window: check count and timestamp, conditionally reset, then increment</li>
+<li>Circuit breaker: increment failure count and check threshold and flip state</li>
+<li>Connection pool: decrement count and remove from available list</li>
+<li>User session: update <code>lastActiveTime</code> and increment <code>requestCount</code></li>
+<li>Inventory with reorder: decrement stock and check threshold and set <code>reorderFlag</code></li>
 </ul>
 <p><strong>Failure and retry are never acceptable:</strong></p>
 <ul>
@@ -288,10 +456,8 @@
 <ul>
 <li>Maps, slices, or any composite type that can&rsquo;t be updated atomically</li>
 </ul>
-<hr>
-<h2 id="the-bottom-line">The Bottom Line</h2>
 <p>If your critical section is a single integer operation, you&rsquo;re paying for a lock you don&rsquo;t need. <code>sync.Mutex</code> is the safe default, but safety has a cost. For simple counters, flags, and gauges under high concurrency, <code>atomic.Int64</code> gives you the same correctness with significantly better performance.</p>
-<p>Run the benchmark yourself. See the numbers. Then make the switch where it makes sense.</p>
+<p>Run the benchmark yourself, see the numbers, and then make the switch where it makes sense.</p>
 <hr>
 <h2 id="appendix-other-atomic-friendly-scenarios">Appendix: Other Atomic-Friendly Scenarios</h2>
 <p>Beyond request counters, here are other cases where Atomic shines:</p>
@@ -299,7 +465,7 @@
 <li><strong>Active connection count</strong>: increment on connect, decrement on disconnect</li>
 <li><strong>Graceful shutdown flag</strong>: a boolean that signals all goroutines to stop</li>
 <li><strong>Rate limiter tokens</strong>: decrement available tokens per request</li>
-<li><strong>Unique ID / sequence generator</strong>: fetch-and-increment for ID generation</li>
+<li><strong>Unique ID or sequence generator</strong>: fetch and increment for ID generation</li>
 <li><strong>Circuit breaker failure count</strong>: increment on failure, reset on success</li>
 <li><strong>Metrics collectors</strong>: counting errors, cache hits, page views</li>
 </ul>
