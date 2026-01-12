@@ -176,15 +176,14 @@
 					
 					
 					<div class="post">
-						<div class="meta">Jan 20, 2025</div>
-						<h4 class="summary">My First Post</h4>
+						<div class="meta">Jan 9, 2026</div>
+						<h4 class="summary">Atomic Integer vs Mutex in Go: Why You&#39;re Paying for a Lock You Don&#39;t Need</h4>
 						<div>
-							<span class="description">Introduction This is bold text, and this is emphasized text.
-Visit the Hugo website!
+							<span class="description">TL;DR Mutex (Pessimistic): Blocks all goroutines—safe but slow under contention Atomic (Optimistic): No blocking, retries on collision—fast for simple operations Use Atomic when: Single operation on a shared int/bool (counters, flags, gauges) Use Mutex when: Multiple operations must be atomic together, or failure/retry is unacceptable Benchmark result: Atomic significantly outperforms Mutex as goroutine count increases You’re building a high-throughput API server in Go. Requests are flooding in, and you need to count them across multiple goroutines. Simple enough—you reach for sync.Mutex, wrap your counter, and move on.
 </span>
 						</div>
 						<p>
-							<a href="/posts/my-first-post/">Read More...</a>
+							<a href="/posts/atomic-vs-mutex/">Read More...</a>
 						</p>
 					</div>
 					

@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html>
+<head>
+	
+	<script async src="https://www.googletagmanager.com/gtag/js?id=G-603BG4GGEB"></script>
+	<script>
+		window.dataLayer = window.dataLayer || [];
+		function gtag(){dataLayer.push(arguments);}
+		gtag('js', new Date());
+
+		gtag('config', 'G-603BG4GGEB');
+	</script>
+
+	<meta charset="utf-8" />
+	<meta http-equiv="X-UA-Compatible" content="IE=edge"><title>Atomic Integer vs Mutex in Go: Why You&#39;re Paying for a Lock You Don&#39;t Need - Arun Lakshman, Ravichandran</title><meta name="viewport" content="width=device-width, initial-scale=1">
+	<meta property="og:url" content="https://www.arunlakshman.info/posts/atomic-vs-mutex/">
+  <meta property="og:site_name" content="Arun Lakshman, Ravichandran">
+  <meta property="og:title" content="Atomic Integer vs Mutex in Go: Why You&#39;re Paying for a Lock You Don&#39;t Need">
+  <meta property="og:description" content="TL;DR Mutex (Pessimistic): Blocks all goroutines—safe but slow under contention Atomic (Optimistic): No blocking, retries on collision—fast for simple operations Use Atomic when: Single operation on a shared int/bool (counters, flags, gauges) Use Mutex when: Multiple operations must be atomic together, or failure/retry is unacceptable Benchmark result: Atomic significantly outperforms Mutex as goroutine count increases You’re building a high-throughput API server in Go. Requests are flooding in, and you need to count them across multiple goroutines. Simple enough—you reach for sync.Mutex, wrap your counter, and move on.">
+  <meta property="og:locale" content="en_us">
+  <meta property="og:type" content="article">
+    <meta property="article:section" content="posts">
+    <meta property="article:published_time" content="2026-01-09T21:00:00+00:00">
+    <meta property="article:modified_time" content="2026-01-09T21:00:00+00:00">
+
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Atomic Integer vs Mutex in Go: Why You&#39;re Paying for a Lock You Don&#39;t Need">
+  <meta name="twitter:description" content="TL;DR Mutex (Pessimistic): Blocks all goroutines—safe but slow under contention Atomic (Optimistic): No blocking, retries on collision—fast for simple operations Use Atomic when: Single operation on a shared int/bool (counters, flags, gauges) Use Mutex when: Multiple operations must be atomic together, or failure/retry is unacceptable Benchmark result: Atomic significantly outperforms Mutex as goroutine count increases You’re building a high-throughput API server in Go. Requests are flooding in, and you need to count them across multiple goroutines. Simple enough—you reach for sync.Mutex, wrap your counter, and move on.">
+<link href="https://fonts.googleapis.com/css2?family=Ubuntu:wght@300;400;500;700&family=Raleway:wght@200;300;400;600&display=swap" rel="stylesheet" />
+	<link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.11.2/css/all.min.css" />
+ 
+	<link rel="stylesheet" type="text/css" media="screen" href="https://www.arunlakshman.info/css/normalize.css" />
+	<link rel="stylesheet" type="text/css" media="screen" href="https://www.arunlakshman.info/css/main.css" />
+
+	
+	<link rel="stylesheet" type="text/css" href="https://www.arunlakshman.info/css/base16.dark.css" />
+	
+	<link rel="stylesheet" type="text/css" href="https://www.arunlakshman.info/css/arun.css" />
+	
+	<link rel="stylesheet" type="text/css" href="https://www.arunlakshman.info/css/syntax.css" />
+	<link rel="stylesheet" type="text/css" href="https://www.arunlakshman.info/css/dark.css" media="(prefers-color-scheme: dark)" />
+
+	<script>
+		const searchUrl = "";
+		const apiKey = "";
+	</script>
+
+	<script src="https://www.arunlakshman.info//js/main.js"></script>
+	<script src="https://www.arunlakshman.info//js/medium-zoom.min.js"></script>
+
+	
+	<script type="module">
+		import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+		
+		
+		const isDarkMode = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+		
+		mermaid.initialize({ 
+			startOnLoad: true,
+			theme: isDarkMode ? 'dark' : 'default',
+			securityLevel: 'loose',
+			flowchart: {
+				useMaxWidth: true,
+				htmlLabels: true
+			},
+			sequence: {
+				useMaxWidth: true,
+				wrap: true
+			}
+		});
+
+		
+		window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+			const newTheme = e.matches ? 'dark' : 'default';
+			mermaid.initialize({ 
+				startOnLoad: true,
+				theme: newTheme,
+				securityLevel: 'loose'
+			});
+			
+			location.reload();
+		});
+	</script>
+
+	<noscript>
+		<style type="text/css">
+			.club { display:none; }
+		</style>
+	</noscript>
+</head>
+
+
+<body>
+	<div class="container wrapper post">
+		<div class="header desktop">
+
+	<div class="row">
+		<div class="header-image-container">
+		</div>
+		<div class="fill">
+			<h1 class="site-title"><a href="https://www.arunlakshman.info/">Arun Lakshman, Ravichandran</a></h1>
+			<div class="site-description"><h2>{ a speck of stardust : writing code }</h2></div>
+
+			<nav class="row pre-nav">
+				<div class="pull-right">
+					<ul class="flat"><li>
+							<a href="/blog/index.xml" title="RSS FEED">
+								<svg width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+									<use xlink:href="/svg/feather-sprite.svg#rss"/>
+								</svg>
+							</a>
+						</li><li>
+							<a href="https://github.com/arunlakshman" title="GitHub">
+								<svg width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+									<use xlink:href="/svg/feather-sprite.svg#github"/>
+								</svg>
+							</a>
+						</li><li>
+							<a href="https://bsky.app/profile/arunlakshman.bsky.social" title="Bluesky">
+								<svg width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+									<use xlink:href="/svg/feather-sprite.svg#cloud"/>
+								</svg>
+							</a>
+						</li><li>
+							<a href="https://twitter.com/arun_lakshman" title="Twitter">
+								<svg width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+									<use xlink:href="/svg/feather-sprite.svg#twitter"/>
+								</svg>
+							</a>
+						</li><li>
+							<a href="https://www.linkedin.com/in/arun-laksh/" title="LinkedIn">
+								<svg width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+									<use xlink:href="/svg/feather-sprite.svg#linkedin"/>
+								</svg>
+							</a>
+						</li></ul>
+				</div>
+			</nav>
+			<nav class="row nav">
+				<div>
+					<ul class="flat">
+						
+						<li>
+							<a href="/">Blog</a>
+						</li>
+						
+						<li>
+							<a href="/projects/">Projects</a>
+						</li>
+						
+						<li>
+							<a href="/conferences/">Conferences</a>
+						</li>
+						
+						<li>
+							<a href="/podcasts/">Podcasts</a>
+						</li>
+						
+						<li>
+							<a href="/about/">About</a>
+						</li>
+						
+					</ul>
+				</div>
+				
+			</nav>
+		</div>
+	</div>
+</div>
+
+
+		<div id = "main-content">
+			<div class="post-header">
+				<h1 class="title">Atomic Integer vs Mutex in Go: Why You&#39;re Paying for a Lock You Don&#39;t Need</h1>
+				<div class="meta">Posted at Jan 9, 2026</div>
+			</div>
+
+			<div class="markdown">
+				<h2 id="tldr">TL;DR</h2>
+<ul>
+<li><strong>Mutex (Pessimistic)</strong>: Blocks all goroutines—safe but slow under contention</li>
+<li><strong>Atomic (Optimistic)</strong>: No blocking, retries on collision—fast for simple operations</li>
+<li><strong>Use Atomic when</strong>: Single operation on a shared int/bool (counters, flags, gauges)</li>
+<li><strong>Use Mutex when</strong>: Multiple operations must be atomic together, or failure/retry is unacceptable</li>
+<li><strong>Benchmark result</strong>: Atomic significantly outperforms Mutex as goroutine count increases</li>
+</ul>
+<hr>
+<p>You&rsquo;re building a high-throughput API server in Go. Requests are flooding in, and you need to count them across multiple goroutines. Simple enough—you reach for <code>sync.Mutex</code>, wrap your counter, and move on.</p>
+<p>But here&rsquo;s the problem: Mutex is a pessimistic lock. Every goroutine waits in line, even for a single integer increment. Under high concurrency, this creates unnecessary contention and quietly kills your performance.</p>
+<p>Is there a better way when your critical section is just one operation on a shared integer?</p>
+<p>Yes. Use <code>atomic.Int64</code>. It leverages optimistic concurrency control, avoids blocking, and significantly outperforms Mutex for single-operation critical sections.</p>
+<p>Let me show you why—and when—to make the switch.</p>
+<hr>
+<h2 id="understanding-the-two-approaches-pcc-vs-occ">Understanding the Two Approaches: PCC vs OCC</h2>
+<p>Before diving into code, let&rsquo;s build intuition for <em>why</em> these two approaches behave differently.</p>
+<h3 id="pessimistic-concurrency-control-pcc-the-mcdonalds-counter">Pessimistic Concurrency Control (PCC): The McDonald&rsquo;s Counter</h3>
+<p>Imagine a McDonald&rsquo;s where you take a token number and wait for your turn. Only one customer is served at a time. You&rsquo;re guaranteed service when your number is called—but everyone waits in line, even if the counter is free.</p>
+<p>This is how <code>sync.Mutex</code> works. A goroutine acquires the lock, does its work, and releases it. Everyone else blocks until it&rsquo;s their turn.</p>
+<p><strong>Characteristics:</strong></p>
+<ul>
+<li>Safe: guaranteed exclusive access</li>
+<li>Never fails: you always get your turn</li>
+<li>Slow under load: everyone waits, even for trivial operations</li>
+</ul>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="kd">type</span><span class="w"> </span><span class="nx">MutexCounter</span><span class="w"> </span><span class="kd">struct</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">mu</span><span class="w">    </span><span class="nx">sync</span><span class="p">.</span><span class="nx">Mutex</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">value</span><span class="w"> </span><span class="kt">int64</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="kd">func</span><span class="w"> </span><span class="p">(</span><span class="nx">c</span><span class="w"> </span><span class="o">*</span><span class="nx">MutexCounter</span><span class="p">)</span><span class="w"> </span><span class="nf">Increment</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">c</span><span class="p">.</span><span class="nx">mu</span><span class="p">.</span><span class="nf">Lock</span><span class="p">()</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">defer</span><span class="w"> </span><span class="nx">c</span><span class="p">.</span><span class="nx">mu</span><span class="p">.</span><span class="nf">Unlock</span><span class="p">()</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">c</span><span class="p">.</span><span class="nx">value</span><span class="o">++</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><h3 id="optimistic-concurrency-control-occ-grabbing-the-last-item-on-a-shelf">Optimistic Concurrency Control (OCC): Grabbing the Last Item on a Shelf</h3>
+<p>Now imagine a store shelf with one item left. Two shoppers reach for it simultaneously. One grabs it; the other&rsquo;s hand closes on air. The &ldquo;loser&rdquo; doesn&rsquo;t wait in line—they check if more stock arrived and try again.</p>
+<p>This is how atomic operations work. You attempt the operation optimistically, assuming no conflict. If someone else changed the value, you retry.</p>
+<p><strong>Characteristics:</strong></p>
+<ul>
+<li>Fast: no waiting, no blocking</li>
+<li>Can fail: collisions happen</li>
+<li>Cheap retries: failures are rare and recovery is instant</li>
+</ul>
+<h3 id="why-retry-makes-sense">Why Retry Makes Sense</h3>
+<p>At first, &ldquo;can fail&rdquo; sounds worse than &ldquo;never fails.&rdquo; But consider the math:</p>
+<ul>
+<li>With Mutex, <em>every</em> goroutine pays the cost of acquiring and releasing a lock</li>
+<li>With Atomic, <em>most</em> operations succeed on the first try; only collisions retry</li>
+</ul>
+<p>When your critical section is a single integer increment, collisions are rare and retries are nearly free. You&rsquo;re trading guaranteed-but-slow for almost-always-fast.</p>
+<h3 id="how-atomic-achieves-this-compare-and-swap-cas">How Atomic Achieves This: Compare-And-Swap (CAS)</h3>
+<p>Under the hood, atomic operations use a CPU instruction called Compare-And-Swap (CAS). Here&rsquo;s the logic:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="kd">func</span><span class="w"> </span><span class="nf">CompareAndSwap</span><span class="p">(</span><span class="nx">addr</span><span class="w"> </span><span class="o">*</span><span class="kt">int64</span><span class="p">,</span><span class="w"> </span><span class="nx">old</span><span class="p">,</span><span class="w"> </span><span class="nx">new</span><span class="w"> </span><span class="kt">int64</span><span class="p">)</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="c1">// Atomically:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="c1">// if *addr == old {</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="c1">//     *addr = new</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="c1">//     return true</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="c1">// }</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="c1">// return false</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><p>A typical atomic increment works like this:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="k">for</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">old</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">atomic</span><span class="p">.</span><span class="nf">LoadInt64</span><span class="p">(</span><span class="o">&amp;</span><span class="nx">value</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">new</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">old</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">atomic</span><span class="p">.</span><span class="nf">CompareAndSwapInt64</span><span class="p">(</span><span class="o">&amp;</span><span class="nx">value</span><span class="p">,</span><span class="w"> </span><span class="nx">old</span><span class="p">,</span><span class="w"> </span><span class="nx">new</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="k">break</span><span class="w"> </span><span class="c1">// Success</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="c1">// Someone else changed it—retry</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><p>Go&rsquo;s <code>atomic.AddInt64</code> does this for you in a single, optimized call:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="kd">type</span><span class="w"> </span><span class="nx">AtomicCounter</span><span class="w"> </span><span class="kd">struct</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">value</span><span class="w"> </span><span class="kt">int64</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="kd">func</span><span class="w"> </span><span class="p">(</span><span class="nx">c</span><span class="w"> </span><span class="o">*</span><span class="nx">AtomicCounter</span><span class="p">)</span><span class="w"> </span><span class="nf">Increment</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">atomic</span><span class="p">.</span><span class="nf">AddInt64</span><span class="p">(</span><span class="o">&amp;</span><span class="nx">c</span><span class="p">.</span><span class="nx">value</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><hr>
+<h2 id="proof-benchmark-results">Proof: Benchmark Results</h2>
+<p>Theory is nice, but let&rsquo;s see the numbers. Here&rsquo;s a complete benchmark you can run yourself:</p>
+<script src="https://gist.github.com/arunlakshman/2cedd03cd9513f7c80d986abb4355cb5.js"></script>
+<p>The benchmark scales from 1 to 64 goroutines, showing you exactly where Atomic pulls ahead.</p>
+<hr>
+<h2 id="when-to-use-which">When to Use Which</h2>
+<p>Here&rsquo;s the decision framework:</p>
+<h3 id="use-atomic-when">Use Atomic When:</h3>
+<ul>
+<li>The critical section is a <strong>single operation</strong> on a shared <code>int</code>, <code>int64</code>, <code>uint64</code>, or <code>bool</code></li>
+<li>Retry is cheap and acceptable</li>
+<li>You need maximum throughput for simple counters, flags, or gauges</li>
+</ul>
+<h3 id="use-mutex-when">Use Mutex When:</h3>
+<p><strong>Multiple operations must be atomic together:</strong></p>
+<ul>
+<li>Rate limiter with time window: check count AND timestamp, conditionally reset, then increment</li>
+<li>Circuit breaker: increment failure count AND check threshold AND flip state</li>
+<li>Connection pool: decrement count AND remove from available list</li>
+<li>User session: update <code>lastActiveTime</code> AND increment <code>requestCount</code></li>
+<li>Inventory with reorder: decrement stock AND check threshold AND set <code>reorderFlag</code></li>
+</ul>
+<p><strong>Failure and retry are never acceptable:</strong></p>
+<ul>
+<li>Financial ledger entries: double-charging or missed credits are catastrophic</li>
+<li>Audit logs with sequence numbers: gaps break compliance</li>
+<li>Distributed lock with lease: partial success corrupts the system</li>
+</ul>
+<p><strong>Operations on complex data structures:</strong></p>
+<ul>
+<li>Maps, slices, or any composite type that can&rsquo;t be updated atomically</li>
+</ul>
+<hr>
+<h2 id="the-bottom-line">The Bottom Line</h2>
+<p>If your critical section is a single integer operation, you&rsquo;re paying for a lock you don&rsquo;t need. <code>sync.Mutex</code> is the safe default, but safety has a cost. For simple counters, flags, and gauges under high concurrency, <code>atomic.Int64</code> gives you the same correctness with significantly better performance.</p>
+<p>Run the benchmark yourself. See the numbers. Then make the switch where it makes sense.</p>
+<hr>
+<h2 id="appendix-other-atomic-friendly-scenarios">Appendix: Other Atomic-Friendly Scenarios</h2>
+<p>Beyond request counters, here are other cases where Atomic shines:</p>
+<ul>
+<li><strong>Active connection count</strong>: increment on connect, decrement on disconnect</li>
+<li><strong>Graceful shutdown flag</strong>: a boolean that signals all goroutines to stop</li>
+<li><strong>Rate limiter tokens</strong>: decrement available tokens per request</li>
+<li><strong>Unique ID / sequence generator</strong>: fetch-and-increment for ID generation</li>
+<li><strong>Circuit breaker failure count</strong>: increment on failure, reset on success</li>
+<li><strong>Metrics collectors</strong>: counting errors, cache hits, page views</li>
+</ul>
+<p>If the pattern is &ldquo;read-modify-write on a single primitive,&rdquo; Atomic is your friend.</p>
+
+			</div>
+
+			<div class="post-tags">
+				
+					
+				
+			</div>
+		</div><div>
+<script src="https://giscus.app/client.js"
+        data-repo="arunlakshman/arunlakshman.info"
+        data-repo-id="R_kgDONtOCcg"
+        data-category="Announcements"
+        data-category-id="DIC_kwDONtOCcs4CmMvD"
+        data-mapping="pathname"
+        data-strict="0"
+        data-reactions-enabled="1"
+        data-emit-metadata="0"
+        data-input-position="bottom"
+        data-theme="preferred_color_scheme"
+        data-lang="en"
+        data-loading="lazy"
+        crossorigin="anonymous"
+        async>
+</script>
+</div>
+
+<noscript>Please enable JavaScript, or join the <a href="https://github.com/arunlakshman/arunlakshman.info/discussions/">discussion on GitHub</a>.</noscript>
+</div>
+	<div class="footer wrapper">
+	<nav class="nav">
+		<div> © 2019 - 2025 Arun Lakshman |  Licensed Under <a href="https://creativecommons.org/licenses/by-sa/4.0/">Creative Commons BY-SA 4.0</a></div>
+	</nav>
+</div><script>
+	mediumZoom(document.querySelectorAll('div.imageblock > div.content > img'))
+</script>
+
+</body>
+</html>
